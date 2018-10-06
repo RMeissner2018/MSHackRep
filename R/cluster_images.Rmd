@@ -1,0 +1,98 @@
+---
+title: "Cluster images"
+output: html_document
+---
+
+```{r}
+library(keras)
+library(magick)  # for preprocessing images
+```
+
+```{r}
+model <- application_vgg16(weights = "imagenet", include_top = FALSE)
+model
+```
+
+```{r}
+image_prep <- function(x) {
+  arrays <- lapply(x, function(path) {
+    img <- image_load(path, target_size = c(224,224))
+    x <- image_to_array(img)
+    x <- array_reshape(x, c(1, dim(x)))
+    x <- imagenet_preprocess_input(x)
+  })
+  do.call(abind::abind, c(arrays, list(along = 1)))
+}
+```
+
+```{r}
+image_files_path <- "/Users/shiringlander/Documents/Github/Data/Dataset_mshack/MaleVsFemaleBikes"
+img_path <- file.path(image_files_path, "Female", 'bike_008.bmp')
+img_path2 <- file.path(image_files_path, "Others", 'bike_001.bmp')
+```
+
+```{r}
+vgg16_feature <- predict(model, image_prep(img_path))
+```
+
+```{r}
+dim(vgg16_feature)
+```
+
+```{r}
+flatten <- as.data.frame.table(vgg16_feature, responseName = "value") %>%
+  select(value)
+flatten <- cbind(img_path, as.data.frame(t(flatten)))
+flatten[, 1:10]
+```
+
+```{r}
+file_list <- list.files(image_files_path, full.names = TRUE, recursive = TRUE)
+```
+
+```{r}
+vgg16_feature_list <- data.frame()
+
+for (image in file_list) {
+  
+  vgg16_feature <- predict(model, image_prep(image))
+  
+  flatten <- as.data.frame.table(vgg16_feature, responseName = "value") %>%
+    select(value)
+  flatten <- cbind(image, as.data.frame(t(flatten)))
+  
+  vgg16_feature_list <- rbind(vgg16_feature_list, flatten)
+}
+head(vgg16_feature_list)
+dim(vgg16_feature_list)
+save(vgg16_feature_list, file = "vgg16_feature_list.RData")
+```
+
+```{r}
+cluster <- kmeans(vgg16_feature_list[, -1], 2)
+```
+
+```{python}
+vgg16_feature_list = []
+
+for idx, dirname in enumerate(subdir):
+    # get the directory names, i.e., 'dogs' or 'cats'
+    # ...
+    
+    for i, fname in enumerate(filenames):
+        # process the files under the directory 'dogs' or 'cats'
+        # ...
+        
+        img = image.load_img(img_path, target_size=(224, 224))
+        img_data = image.img_to_array(img)
+        img_data = np.expand_dims(img_data, axis=0)
+        img_data = vgg16_preprocess(img_data)
+
+        vgg16_feature = model_vgg16.predict(img_data)
+        vgg16_feature_np = np.array(vgg16_feature)
+        vgg16_feature_list.append(vgg16_feature_np.flatten())
+        
+vgg16_feature_list_np = np.array(vgg16_feature_list)
+kmeans = KMeans(n_clusters=2, random_state=0).fit(vgg16_feature_list_np)
+```
+
