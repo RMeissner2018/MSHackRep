@@ -50,7 +50,7 @@ flatten[, 1:10]
 file_list <- list.files(image_files_path, full.names = TRUE, recursive = TRUE)
 ```
 
-```{r}
+```{r eval=FALSE}
 vgg16_feature_list <- data.frame()
 
 for (image in file_list) {
@@ -69,30 +69,39 @@ save(vgg16_feature_list, file = "vgg16_feature_list.RData")
 ```
 
 ```{r}
-cluster <- kmeans(vgg16_feature_list[, -1], 2)
+load("vgg16_feature_list.RData")
 ```
 
-```{python}
-vgg16_feature_list = []
+```{r}
+pca <- prcomp(vgg16_feature_list[, -1],
+              center = TRUE,
+              scale = FALSE)
 
-for idx, dirname in enumerate(subdir):
-    # get the directory names, i.e., 'dogs' or 'cats'
-    # ...
-    
-    for i, fname in enumerate(filenames):
-        # process the files under the directory 'dogs' or 'cats'
-        # ...
-        
-        img = image.load_img(img_path, target_size=(224, 224))
-        img_data = image.img_to_array(img)
-        img_data = np.expand_dims(img_data, axis=0)
-        img_data = vgg16_preprocess(img_data)
+str(pca)
+```
 
-        vgg16_feature = model_vgg16.predict(img_data)
-        vgg16_feature_np = np.array(vgg16_feature)
-        vgg16_feature_list.append(vgg16_feature_np.flatten())
-        
-vgg16_feature_list_np = np.array(vgg16_feature_list)
-kmeans = KMeans(n_clusters=2, random_state=0).fit(vgg16_feature_list_np)
+```{r}
+cluster <- kmeans(pca$x[, 1:10], 2)
+
+cluster_list <- data.frame(cluster = cluster$cluster, vgg16_feature_list) %>%
+  select(cluster, image)
+head(cluster_list)
+```
+
+```{r}
+cluster_list %>%
+  mutate(class = gsub("/Users/shiringlander/Documents/Github/Data/Dataset_mshack/MaleVsFemaleBikes/", "", image),
+         class = substr(class, start = 1, stop = 3)) %>%
+  count(cluster, class)
+```
+
+```{r}
+cluster_list %>%
+  mutate(PC1 = pca$x[, 1],
+         PC2 = pca$x[, 2],
+         class = gsub("/Users/shiringlander/Documents/Github/Data/Dataset_mshack/MaleVsFemaleBikes/", "", image),
+         class = substr(class, start = 1, stop = 3)) %>%
+  ggplot(aes(x = PC1, y = PC2, color = class)) +
+    geom_point()
 ```
 
